@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Manzini — Virtual Gallery</title>
+<style>
+  :root { --wall:#E2A894; --ink:#2a1d17; --paper:#f7efe6; --gold:#b88a5a; --glass:rgba(32,22,18,.72); }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; overflow:hidden; background:#150f0d; color:var(--paper); font:15px/1.45 Georgia,'Times New Roman',serif; }
+  #c { position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:none; cursor:grab; }
+  #c:active { cursor:grabbing; }
+  .hud { position:fixed; z-index:5; }
+  .tl { top:max(12px,env(safe-area-inset-top)); left:12px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; max-width:calc(100% - 190px); }
+  .tl b { font-size:22px; letter-spacing:.32em; font-weight:400; }
+  #clock { font-style:italic; opacity:.85; }
+  .btn { background:var(--paper); color:var(--ink); border:0; border-radius:999px; padding:7px 14px; font:inherit; font-size:14px; text-decoration:none; cursor:pointer; }
+  .btn:focus-visible,input:focus-visible,#map:focus-visible { outline:3px solid #fff; outline-offset:2px; }
+  .glass { background:var(--glass); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,.14); border-radius:14px; }
+  .tr { top:max(12px,env(safe-area-inset-top)); right:12px; padding:8px; width:176px; }
+  #map { width:100%; aspect-ratio:1; display:block; border-radius:10px; cursor:crosshair; }
+  .tr label { display:flex; gap:6px; align-items:center; font-size:12px; margin-top:6px; }
+  .tr input { flex:1; min-width:0; }
+  .tr button { font-size:12px; padding:3px 9px; }
+  #placard { left:12px; bottom:calc(86px + env(safe-area-inset-bottom)); width:min(380px,calc(100% - 24px)); padding:14px 16px; background:var(--paper); color:var(--ink); border-radius:4px; border-left:5px solid var(--gold); box-shadow:0 10px 30px rgba(0,0,0,.4); }
+  #placard h2 { margin:0; font-size:21px; font-weight:700; }
+  #placard .meta { font-style:italic; color:#6b5446; margin:2px 0 8px; }
+  #placard p { margin:0; max-height:7.5em; overflow:auto; }
+  #placard small { display:block; margin-top:8px; color:#8a7262; }
+  #tour { left:50%; transform:translateX(-50%); bottom:max(14px,env(safe-area-inset-bottom)); display:flex; gap:8px; align-items:center; padding:8px 10px; }
+  #tour .step { min-width:74px; text-align:center; font-variant-numeric:tabular-nums; }
+  #tour .btn[disabled] { opacity:.4; cursor:default; }
+  #dpad { display:none; right:14px; bottom:calc(86px + env(safe-area-inset-bottom)); width:132px; height:132px; }
+  #dpad button { position:absolute; width:44px; height:44px; border-radius:50%; border:1px solid rgba(255,255,255,.3); background:var(--glass); color:#fff; font-size:18px; touch-action:none; user-select:none; }
+  #hint { left:50%; transform:translateX(-50%); top:max(58px,calc(env(safe-area-inset-top) + 46px)); padding:6px 14px; font-size:13px; pointer-events:none; transition:opacity .6s; text-align:center; }
+  #fb { position:fixed; inset:0; z-index:9; overflow:auto; padding:24px 16px 48px; background:var(--wall); color:var(--ink); }
+  #fb h1 { letter-spacing:.3em; font-weight:400; margin:0 0 6px; }
+  #fb .grid { display:grid; gap:16px; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); margin-top:18px; }
+  #fb figure { margin:0; background:var(--paper); padding:10px; border-radius:3px; }
+  #fb img { width:100%; display:block; }
+  @media (max-width:640px) { .tr { width:120px; padding:6px; } .tl { max-width:calc(100% - 140px); } .tl b { font-size:17px; } #dpad { display:block; } #tour .btn { padding:7px 11px; } }
+  @media (prefers-reduced-motion:reduce) { #hint { transition:none; } }
+</style>
+</head>
+<body>
+<canvas id="c" aria-label="3D gallery view"></canvas>
+
+<header class="hud tl"><b>Manzini Gallery</b><span id="clock"></span></header>
+<div class="hud tr glass">
+  <canvas id="map" width="360" height="360" tabindex="0" aria-label="Rotunda minimap. Click to move."></canvas>
+  <label>Sky <input id="hour" type="range" min="0" max="24" step="0.25" aria-label="Time of day"><button id="live" class="btn" type="button">Live</button></label>
+</div>
+<aside id="placard" class="hud" hidden aria-live="polite"><h2></h2><div class="meta"></div><p></p><small></small></aside>
+<nav id="tour" class="hud glass" aria-label="Guided tour">
+  <button class="btn" id="prev" type="button">Previous</button>
+  <button class="btn" id="play" type="button">Play tour</button>
+  <span class="step" id="step">0/0</span>
+  <button class="btn" id="next" type="button">Next</button>
+</nav>
+<div id="dpad" class="hud" aria-hidden="true">
+  <button data-k="f" style="left:44px;top:0">▲</button><button data-k="b" style="left:44px;top:88px">▼</button>
+  <button data-k="l" style="left:0;top:44px">◀</button><button data-k="r" style="left:88px;top:44px">▶</button>
+</div>
+<div id="hint" class="hud glass">Drag to look · WASD or arrows to walk · click the floor or an artwork to go there</div>
+<div id="fb" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="store.js"></script>
+<script>
+(function () {
+  'use strict';
+  const A = window.Aetheria, $ = id => document.getElementById(id);
+  const R = 9, HW = 4, WL = 22, H = 5, RH = 9.5, EYE = 1.7, TAU = Math.PI * 2;
+  // Visitors always see the published exhibition.json. ?preview=1 shows the curator's local draft instead.
+  const PREVIEW = /[?&]preview=1/.test(location.search);
+  let state = A.defaults();
+  const getState = () => PREVIEW ? Promise.resolve(A.load()) : A.published();
+
+  /* ---------- 2D fallback when WebGL or three.js is unavailable ---------- */
+  function fallback(msg) { getState().then(s => { state = s; drawFallback(msg); }); }
+  function drawFallback(msg) {
+    const fb = $('fb'); fb.hidden = false; document.querySelectorAll('.hud').forEach(e => e.hidden = true);
+    fb.innerHTML = '<h1>AETHERIA</h1><p></p><div class="grid"></div>';
+    fb.querySelector('p').textContent = msg + ' Showing the exhibition as a list instead.';
+    state.items.filter(i => i.slot).forEach(it => {
+      const f = document.createElement('figure'), im = new Image(); im.alt = it.title; im.src = A.src(it);
+      const c = document.createElement('figcaption'); c.innerHTML = '<b></b><br><i></i><p></p>';
+      c.querySelector('b').textContent = it.title; c.querySelector('i').textContent = [it.creator, it.year].filter(Boolean).join(', ');
+      c.querySelector('p').textContent = it.description; f.append(im, c); fb.querySelector('.grid').append(f);
+    });
+  }
+  if (!window.THREE) return fallback('The 3D library could not be loaded.');
+  let renderer;
+  try { renderer = new THREE.WebGLRenderer({ canvas: $('c'), antialias: true }); } catch (e) { return fallback('WebGL is not available in this browser.'); }
+  renderer.outputEncoding = THREE.sRGBEncoding;
+
+  /* ---------- Scene ---------- */
+  const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(70, 1, .1, 400);
+  camera.rotation.order = 'YXZ';
+  const cam = { pos: new THREE.Vector3(0, EYE, 4), yaw: 0, pitch: 0 };
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x6b5a50, .6); scene.add(hemi);
+  const sun = new THREE.DirectionalLight(0xffffff, 1); scene.add(sun);
+  const lamps = [];
+  function lamp(x, z, y, range) { const l = new THREE.PointLight(0xffe2c0, .7, range, 1.6); l.position.set(x, y, z); scene.add(l); lamps.push(l); }
+
+  // Sky dome (vertical gradient) + sun disc + stars
+  const skyMat = new THREE.ShaderMaterial({ side: THREE.BackSide, depthWrite: false,
+    uniforms: { top: { value: new THREE.Color() }, hor: { value: new THREE.Color() } },
+    vertexShader: 'varying vec3 p;void main(){p=normalize(position);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
+    fragmentShader: 'uniform vec3 top,hor;varying vec3 p;void main(){gl_FragColor=vec4(mix(hor,top,smoothstep(-.05,.65,p.y)),1.);}' });
+  scene.add(new THREE.Mesh(new THREE.SphereGeometry(300, 24, 16), skyMat));
+  const sunDisc = new THREE.Mesh(new THREE.SphereGeometry(7, 16, 12), new THREE.MeshBasicMaterial({ color: 0xfff2c0, fog: false })); scene.add(sunDisc);
+  const sp = []; for (let i = 0; i < 500; i++) { const a = Math.random() * TAU, e = Math.random() * 1.4 + .05, r = 280; sp.push(Math.cos(a) * Math.cos(e) * r, Math.sin(e) * r, Math.sin(a) * Math.cos(e) * r); }
+  const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.Float32BufferAttribute(sp, 3));
+  const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 1.6, sizeAttenuation: false, transparent: true, depthWrite: false });
+  scene.add(new THREE.Points(sg, starMat));
+  const SK = [[0, '#050816', '#101733'], [5, '#141a3d', '#3a3560'], [6.5, '#5d7fb8', '#f7b58a'], [8.5, '#6fb2ee', '#cfe6f5'], [12, '#4a9fe8', '#bfe0f7'],
+    [16, '#5aa6e6', '#d6e8f2'], [18.5, '#5a74b0', '#f59a63'], [20, '#1d2147', '#5a3f66'], [24, '#050816', '#101733']];
+  const c1 = new THREE.Color(), c2 = new THREE.Color();
+  function skyAt(h, idx, out) { let i = 0; while (i < SK.length - 2 && h > SK[i + 1][0]) i++; const a = SK[i], b = SK[i + 1], t = Math.min(1, Math.max(0, (h - a[0]) / (b[0] - a[0])));
+    c1.set(a[idx]); c2.set(b[idx]); out.copy(c1).lerp(c2, t); }
+  function applyTime(h) {
+    skyAt(h, 1, skyMat.uniforms.top.value); skyAt(h, 2, skyMat.uniforms.hor.value);
+    const a = Math.PI * (h - 6) / 12, el = Math.sin(a), day = Math.min(1, Math.max(0, el * 2 + .3));
+    sun.position.set(Math.cos(a) * 60, Math.max(el, .05) * 60, 25); sun.intensity = Math.max(0, el) * 1.1;
+    sun.color.setHSL(.09, .8, .65 + Math.min(.3, el * .6));
+    hemi.intensity = .28 + .45 * day; lamps.forEach(l => l.intensity = .55 + (1 - day) * .4);
+    sunDisc.position.set(Math.cos(a) * 250, el * 250, 100); sunDisc.visible = el > -.08;
+    starMat.opacity = 1 - day; renderer.setClearColor(skyMat.uniforms.hor.value);
+  }
+
+  /* ---------- Architecture ---------- */
+  const M = (c, o) => new THREE.MeshStandardMaterial(Object.assign({ color: c, roughness: .85 }, o || {}));
+  const wallM = M(0xE2A894, { side: THREE.DoubleSide }), trimM = M(0xf3e7da, { roughness: .6 }), floorM = M(0xcdb59b, { roughness: .55 }), goldM = M(0xb88a5a, { metalness: .6, roughness: .35 });
+  const world = new THREE.Group(); scene.add(world);
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(600, 600), M(0x39423a)); ground.rotation.x = -Math.PI / 2; ground.position.y = -.05; world.add(ground);
+  const rFloor = new THREE.Mesh(new THREE.CircleGeometry(R + .2, 64), floorM); rFloor.rotation.x = -Math.PI / 2; world.add(rFloor);
+  [[2.6, 2.9], [R - 1.2, R - .9]].forEach(r => { const m = new THREE.Mesh(new THREE.RingGeometry(r[0], r[1], 64), goldM); m.rotation.x = -Math.PI / 2; m.position.y = .01; world.add(m); });
+  const gap = Math.asin(HW / R);
+  for (let k = 0; k < 4; k++) {
+    const phi = k * Math.PI / 2;
+    const arc = new THREE.Mesh(new THREE.CylinderGeometry(R, R, RH, 32, 1, true, phi + gap, Math.PI / 2 - 2 * gap), wallM); arc.position.y = RH / 2; world.add(arc);
+    // wing built in local coords (+z = outward), rotated into place
+    const w = new THREE.Group(); w.rotation.y = phi; world.add(w);
+    const len = R + WL - 5, cz = 5 + len / 2;
+    const fl = new THREE.Mesh(new THREE.PlaneGeometry(HW * 2, len), floorM); fl.rotation.x = -Math.PI / 2; fl.position.set(0, 0, cz); w.add(fl);
+    const run = new THREE.Mesh(new THREE.PlaneGeometry(1.6, len), M(0x7a3b34)); run.rotation.x = -Math.PI / 2; run.position.set(0, .01, cz); w.add(run);
+    const ce = new THREE.Mesh(new THREE.PlaneGeometry(HW * 2 + .6, len), M(0xf6efe6, { side: THREE.DoubleSide })); ce.rotation.x = Math.PI / 2; ce.position.set(0, H, cz); w.add(ce);
+    [-1, 1].forEach(s => {
+      const wl = new THREE.Mesh(new THREE.BoxGeometry(.3, H, len), wallM); wl.position.set(s * (HW + .15), H / 2, cz); w.add(wl);
+      const bb = new THREE.Mesh(new THREE.BoxGeometry(.1, .28, len), trimM); bb.position.set(s * (HW - .03), .14, cz); w.add(bb);
+      const cr = new THREE.Mesh(new THREE.BoxGeometry(.18, .22, len), trimM); cr.position.set(s * (HW - .06), H - .11, cz); w.add(cr);
+    });
+    const end = new THREE.Mesh(new THREE.BoxGeometry(HW * 2 + .6, H, .3), wallM); end.position.set(0, H / 2, R + WL + .15); w.add(end);
+    const dx = Math.round(Math.sin(phi)), dz = Math.round(Math.cos(phi));
+    lamp(dx * (R + 6), dz * (R + 6), H - .6, 16); lamp(dx * (R + 16), dz * (R + 16), H - .6, 16);
+  }
+  [0, RH - .1].forEach((y, i) => { const t = new THREE.Mesh(new THREE.TorusGeometry(R, i ? .18 : .1, 8, 64), trimM); t.rotation.x = Math.PI / 2; t.position.y = y + .1; world.add(t); });
+  lamp(0, 0, 6, 26);
+  // central sculpture
+  const ped = new THREE.Mesh(new THREE.CylinderGeometry(1, 1.2, 1, 24), trimM); ped.position.y = .5; world.add(ped);
+  const knot = new THREE.Mesh(new THREE.TorusKnotGeometry(.7, .22, 96, 12), M(0xc8553d, { metalness: .5, roughness: .3 })); knot.position.y = 2.2; world.add(knot);
+
+  /* ---------- Artworks ---------- */
+  const artRoot = new THREE.Group(); scene.add(artRoot);
+  let arts = [], pics = [], tour = [];
+  const bx = new THREE.BoxGeometry(1, 1, .1), pl = new THREE.PlaneGeometry(1, 1), frameM = M(0x3b2a22, { roughness: .5 });
+  const clip = (s, n) => s.length > n ? s.slice(0, n - 1) + '…' : s;
+  function plaque(it) {
+    const c = document.createElement('canvas'); c.width = 256; c.height = 96; const x = c.getContext('2d');
+    x.fillStyle = '#f6efe6'; x.fillRect(0, 0, 256, 96); x.strokeStyle = '#b88a5a'; x.lineWidth = 3; x.strokeRect(3, 3, 250, 90);
+    x.fillStyle = '#2a1d17'; x.textAlign = 'center'; x.font = 'bold 22px Georgia,serif'; x.fillText(clip(it.title, 22), 128, 40);
+    x.font = 'italic 17px Georgia,serif'; x.fillText(clip([it.creator, it.year].filter(Boolean).join(', '), 30), 128, 68);
+    const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; return t;
+  }
+  function loadTex(it, cb) {
+    const fromImg = im => { const t = new THREE.Texture(im); t.encoding = THREE.sRGBEncoding; t.anisotropy = 4; t.needsUpdate = true; cb(t, im.width / im.height); };
+    const gen = () => fromImg(A.genArt(A.hash(it.id)));
+    if (!it.image || it.image.indexOf('gen:') === 0) return fromImg(A.genArt(+it.image.slice(4) || A.hash(it.id)));
+    const im = new Image(); im.crossOrigin = 'anonymous'; im.onload = () => fromImg(im); im.onerror = gen; im.src = it.image;
+  }
+  function buildArt() {
+    while (artRoot.children.length) artRoot.remove(artRoot.children[0]);
+    arts = []; pics = [];
+    state.items.forEach(it => {
+      const s = A.slot(it.slot); if (!s) return;
+      const phi = s.wing * Math.PI / 2, dx = Math.round(Math.sin(phi)), dz = Math.round(Math.cos(phi)), px = -dz, pz = dx;
+      const d = R + (s.row ? 15 : 5), lat = s.side * (HW - .06), nx = -s.side * px, nz = -s.side * pz;
+      const g = new THREE.Group(); g.position.set(dx * d + px * lat, 2.2, dz * d + pz * lat); g.rotation.y = Math.atan2(nx, nz);
+      const frame = new THREE.Mesh(bx, frameM), pic = new THREE.Mesh(pl, new THREE.MeshStandardMaterial({ color: 0x777777, roughness: .9 })); pic.position.z = .06;
+      frame.scale.set(2.5, 2.3, 1); pic.scale.set(2.2, 2, 1);
+      const pq = new THREE.Mesh(new THREE.PlaneGeometry(.9, .34), new THREE.MeshBasicMaterial({ map: plaque(it) })); pq.position.set(0, -1.35, .03);
+      g.add(frame, pic, pq); artRoot.add(g);
+      const e = { item: it, pos: g.position.clone(), yaw: Math.atan2(nx, nz), stop: new THREE.Vector3(g.position.x + nx * 3.4, EYE, g.position.z + nz * 3.4), slot: s };
+      pic.userData.art = e; pics.push(pic); arts.push(e);
+      loadTex(it, (tex, a) => {
+        const w = a > 1.3 ? 2.8 : 2 * a, h = a > 1.3 ? 2.8 / a : 2; frame.scale.set(w + .3, h + .3, 1); pic.scale.set(w, h, 1);
+        pic.material.dispose(); pic.material = new THREE.MeshStandardMaterial({ map: tex, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: .4, roughness: .9 });
+      });
+    });
+    tour = A.tourList(state).map(i => arts.find(a => a.item.id === i.id)).filter(Boolean);
+    ti = Math.min(ti, tour.length - 1); updTour();
+  }
+
+  /* ---------- Walkable area, regions, movement ---------- */
+  const dirOf = k => { const p = k * Math.PI / 2; return [Math.round(Math.sin(p)), Math.round(Math.cos(p))]; };
+  function region(x, z) {
+    if (x * x + z * z < (R - .3) * (R - .3)) return -1;
+    for (let k = 0; k < 4; k++) { const [dx, dz] = dirOf(k); if (x * dx + z * dz > R - 3 && Math.abs(-x * dz + z * dx) < HW) return k; }
+    return -1;
+  }
+  function inside(x, z, m) {
+    m = m == null ? .5 : m;
+    if (x * x + z * z < (R - m) * (R - m)) return true;
+    for (let k = 0; k < 4; k++) { const [dx, dz] = dirOf(k), d = x * dx + z * dz, l = -x * dz + z * dx; if (d > 5 && d < R + WL - m && Math.abs(l) < HW - m) return true; }
+    return false;
+  }
+  const keys = { f: 0, b: 0, l: 0, r: 0, tl: 0, tr: 0 };
+  let tw = null, arrivedAt = 0;
+  function path(points) { // polyline tween with ease in/out
+    const L = []; let tot = 0; for (let i = 1; i < points.length; i++) { const l = points[i].distanceTo(points[i - 1]); L.push(l); tot += l; }
+    return { pts: points, L, tot };
+  }
+  function tweenTo(to, yaw, pitch) {
+    const from = cam.pos.clone(), a = region(from.x, from.z), b = region(to.x, to.z), pts = [from];
+    if (a !== b || (a >= 0 && b >= 0 && a !== b)) {
+      if (a >= 0) { const [dx, dz] = dirOf(a); pts.push(new THREE.Vector3(dx * (R - 2), EYE, dz * (R - 2))); }
+      if (b >= 0) { const [dx, dz] = dirOf(b); pts.push(new THREE.Vector3(dx * (R - 2), EYE, dz * (R - 2))); }
+    }
+    pts.push(to.clone()); const p = path(pts);
+    const ty = yaw == null ? cam.yaw : yaw, dy = ((ty - cam.yaw + Math.PI) % TAU + TAU) % TAU - Math.PI;
+    tw = { t: 0, dur: Math.min(4, .8 + p.tot / 7), p, y0: cam.yaw, dy, pt0: cam.pitch, pt1: pitch == null ? cam.pitch : pitch };
+  }
+  function stepTween(dt) {
+    tw.t += dt; const k = Math.min(1, tw.t / tw.dur), e = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+    let s = e * tw.p.tot, i = 0; while (i < tw.p.L.length - 1 && s > tw.p.L[i]) { s -= tw.p.L[i]; i++; }
+    const f = tw.p.L[i] ? Math.min(1, s / tw.p.L[i]) : 1; cam.pos.lerpVectors(tw.p.pts[i], tw.p.pts[i + 1], f);
+    cam.yaw = tw.y0 + tw.dy * e; cam.pitch = tw.pt0 + (tw.pt1 - tw.pt0) * e;
+    if (k >= 1) { tw = null; arrivedAt = performance.now(); }
+  }
+
+  /* ---------- Placard + guided tour ---------- */
+  let cur = null, ti = -1, playing = false;
+  function setCur(a) {
+    if (a === cur) return; cur = a; const p = $('placard'); p.hidden = !a; if (!a) return;
+    const it = a.item; p.querySelector('h2').textContent = it.title;
+    p.querySelector('.meta').textContent = [it.creator, it.year].filter(Boolean).join(', ');
+    p.querySelector('p').textContent = it.description || 'No notes provided.'; p.querySelector('small').textContent = a.slot.label;
+  }
+  function updTour() {
+    const n = tour.length; $('step').textContent = Math.max(0, ti + 1) + '/' + n;
+    ['prev', 'next', 'play'].forEach(id => $(id).disabled = !n); $('play').textContent = playing ? 'Pause tour' : 'Play tour';
+    $('step').title = n ? '' : 'Assign artworks to wall slots and tour order in Curator Admin.';
+  }
+  function goStop(i) { if (!tour.length) return; ti = (i + tour.length) % tour.length; const a = tour[ti]; tweenTo(a.stop, a.yaw, -.03); setCur(a); updTour(); }
+  $('next').onclick = () => { goStop(ti + 1); };
+  $('prev').onclick = () => { goStop(ti < 0 ? 0 : ti - 1); };
+  $('play').onclick = () => { playing = !playing; if (playing && !tw) goStop(ti + 1); updTour(); };
+
+  /* ---------- Input ---------- */
+  const cv = $('c'); let drag = null, hinted = false;
+  const hideHint = () => { if (!hinted) { hinted = true; $('hint').style.opacity = 0; } };
+  const kmap = { KeyW: 'f', ArrowUp: 'f', KeyS: 'b', ArrowDown: 'b', KeyA: 'l', KeyD: 'r', ArrowLeft: 'tl', ArrowRight: 'tr' };
+  addEventListener('keydown', e => { if (kmap[e.code]) { keys[kmap[e.code]] = 1; hideHint(); e.preventDefault(); } });
+  addEventListener('keyup', e => { if (kmap[e.code]) keys[kmap[e.code]] = 0; });
+  addEventListener('blur', () => { for (const k in keys) keys[k] = 0; });
+  document.querySelectorAll('#dpad button').forEach(b => { const k = b.dataset.k;
+    b.addEventListener('pointerdown', e => { keys[k] = 1; hideHint(); b.setPointerCapture(e.pointerId); });
+    ['pointerup', 'pointercancel'].forEach(ev => b.addEventListener(ev, () => keys[k] = 0)); });
+  cv.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, moved: 0 }; cv.setPointerCapture(e.pointerId); });
+  cv.addEventListener('pointermove', e => { if (!drag) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag.x = e.clientX; drag.y = e.clientY;
+    drag.moved += Math.abs(dx) + Math.abs(dy); if (drag.moved > 6) { tw = null; playing = false; updTour(); hideHint(); cam.yaw -= dx * .005; cam.pitch = Math.max(-1.2, Math.min(1.2, cam.pitch - dy * .004)); } });
+  cv.addEventListener('pointerup', e => { const d = drag; drag = null; if (d && d.moved < 8) pick(e.clientX, e.clientY); });
+  const ray = new THREE.Raycaster();
+  function pick(cx, cy) {
+    hideHint(); ray.setFromCamera(new THREE.Vector2(cx / innerWidth * 2 - 1, -(cy / innerHeight) * 2 + 1), camera);
+    const h = ray.intersectObjects(pics)[0];
+    if (h) { const a = h.object.userData.art; playing = false; tweenTo(a.stop, a.yaw, -.03); setCur(a); const i = tour.indexOf(a); if (i >= 0) ti = i; updTour(); return; }
+    const o = ray.ray.origin, d = ray.ray.direction; if (d.y >= -.01) return;
+    const t = -o.y / d.y; let x = o.x + d.x * t, z = o.z + d.z * t; if (t > 60) return;
+    clampWalk(x, z);
+  }
+  function clampWalk(x, z) { let n = 0; while (!inside(x, z) && n++ < 40) { x *= .93; z *= .93; } playing = false; updTour(); tweenTo(new THREE.Vector3(x, EYE, z)); }
+
+  /* ---------- Minimap ---------- */
+  const mc = $('map'), mx = mc.getContext('2d'), MW = mc.width, MS = MW / (2 * (R + WL) + 3);
+  function drawMap() {
+    mx.clearRect(0, 0, MW, MW); mx.fillStyle = 'rgba(20,14,12,.55)'; mx.fillRect(0, 0, MW, MW);
+    mx.save(); mx.translate(MW / 2, MW / 2); mx.scale(MS, MS); mx.fillStyle = '#E2A894';
+    for (let k = 0; k < 4; k++) { mx.save(); mx.rotate(-k * Math.PI / 2); mx.fillRect(-HW, 5, HW * 2, R + WL - 5); mx.restore(); }
+    mx.beginPath(); mx.arc(0, 0, R, 0, TAU); mx.fill(); mx.strokeStyle = '#b88a5a'; mx.lineWidth = .5; mx.beginPath(); mx.arc(0, 0, 2.8, 0, TAU); mx.stroke();
+    arts.forEach(a => { mx.fillStyle = a === cur ? '#fff' : '#3b2a22'; mx.beginPath(); mx.arc(a.pos.x, a.pos.z, a === cur ? 1.1 : .7, 0, TAU); mx.fill(); });
+    mx.translate(cam.pos.x, cam.pos.z); mx.rotate(Math.atan2(-Math.cos(cam.yaw), -Math.sin(cam.yaw)));
+    mx.fillStyle = '#fff'; mx.strokeStyle = '#c8553d'; mx.lineWidth = .6; mx.beginPath(); mx.moveTo(2.2, 0); mx.lineTo(-1.4, 1.4); mx.lineTo(-1.4, -1.4); mx.closePath(); mx.fill(); mx.stroke();
+    mx.restore();
+  }
+  mc.addEventListener('click', e => { const r = mc.getBoundingClientRect();
+    clampWalk(((e.clientX - r.left) / r.width * MW - MW / 2) / MS, ((e.clientY - r.top) / r.height * MW - MW / 2) / MS); });
+
+  /* ---------- Time of day ---------- */
+  let manual = null; const hr = $('hour');
+  const nowH = () => { const d = new Date(); return d.getHours() + d.getMinutes() / 60; };
+  const curH = () => manual == null ? nowH() : manual;
+  hr.oninput = () => { manual = +hr.value; applyTime(manual); showClock(); };
+  $('live').onclick = () => { manual = null; hr.value = nowH(); applyTime(nowH()); showClock(); };
+  function showClock() { const h = curH(), m = Math.floor((h % 1) * 60); $('clock').textContent = (manual == null ? '' : 'Preview ') + String(Math.floor(h) % 24).padStart(2, '0') + ':' + String(m).padStart(2, '0'); }
+
+  /* ---------- Main loop ---------- */
+  function resize() { renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2)); renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.fov = camera.aspect < 1 ? 82 : 68; camera.updateProjectionMatrix(); }
+  addEventListener('resize', resize); resize();
+  if (PREVIEW) addEventListener('storage', e => { if (e.key === A.KEY) { state = A.load(); setCur(null); buildArt(); } });
+  let last = performance.now(), frame = 0, pickT = 0;
+  function loop(now) {
+    requestAnimationFrame(loop); const dt = Math.min(.05, (now - last) / 1000); last = now; frame++;
+    const mv = keys.f - keys.b, st = keys.r - keys.l, tr = keys.tr - keys.tl;
+    if (mv || st || tr) { if (tw) { tw = null; } playing = false; updTour(); }
+    if (tr) cam.yaw -= tr * 1.8 * dt;
+    if (tw) stepTween(dt);
+    else if (mv || st) {
+      const sy = Math.sin(cam.yaw), cy = Math.cos(cam.yaw), sp = 4.2 * dt;
+      let vx = (-sy * mv + cy * st), vz = (-cy * mv - sy * st); const l = Math.hypot(vx, vz) || 1; vx = vx / l * sp; vz = vz / l * sp;
+      if (inside(cam.pos.x + vx, cam.pos.z)) cam.pos.x += vx; if (inside(cam.pos.x, cam.pos.z + vz)) cam.pos.z += vz;
+    } else if (playing && tour.length && now - arrivedAt > 7000) goStop(ti + 1);
+    camera.position.set(cam.pos.x, cam.pos.y + (tw ? 0 : Math.sin(now / 900) * .004), cam.pos.z); camera.rotation.set(cam.pitch, cam.yaw, 0);
+    knot.rotation.y += dt * .5; knot.rotation.x += dt * .2;
+    if (now - pickT > 200) { pickT = now; // placard follows what the visitor is looking at
+      ray.setFromCamera(new THREE.Vector2(0, 0), camera); const h = ray.intersectObjects(pics)[0];
+      if (h && h.distance < 12) setCur(h.object.userData.art); else if (cur && cur.pos.distanceTo(cam.pos) > 8) setCur(null); }
+    if (frame % 60 === 1) { applyTime(curH()); showClock(); }
+    if (frame % 2 === 0) drawMap();
+    renderer.render(scene, camera);
+  }
+  hr.value = nowH(); applyTime(nowH()); showClock(); requestAnimationFrame(loop);
+  if (PREVIEW) { const b = document.createElement('span'); b.className = 'btn'; b.textContent = 'Draft preview'; document.querySelector('.tl').append(b); }
+  getState().then(s => { state = s; setCur(null); buildArt(); });
+  setTimeout(hideHint, 9000);
+})();
+</script>
+</body>
+</html>

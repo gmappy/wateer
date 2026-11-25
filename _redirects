@@ -1,0 +1,2 @@
+# Used when the publish directory is "public" (copy index.html, admin.html, store.js there too).
+/admin  /admin.html  200

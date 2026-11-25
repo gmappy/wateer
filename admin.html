@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AETHERIA — Curator Studio</title>
+<meta name="theme-color" content="#17201e">
+<link rel="icon" type="image/svg+xml" href="assets/aetheria-mark.svg">
+<style>
+  :root { --wall:#E2A894; --ink:#2a1d17; --paper:#f7efe6; --gold:#b88a5a; --line:#d9c3b3; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink); font:15px/1.45 Georgia,'Times New Roman',serif; }
+  header { background:var(--ink); color:var(--paper); padding:12px 16px; display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+  header h1 { margin:0 auto 0 0; font-size:19px; letter-spacing:.3em; font-weight:400; }
+  button,.btn { font:inherit; font-size:14px; border:1px solid var(--ink); background:var(--paper); color:var(--ink); border-radius:999px; padding:6px 14px; cursor:pointer; text-decoration:none; }
+  button.primary { background:var(--wall); } button.danger { border-color:#a33; color:#a33; }
+  header .btn,header button { border-color:var(--paper); }
+  button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,.item:focus-visible,a:focus-visible { outline:3px solid #7a3b34; outline-offset:2px; }
+  main { display:grid; grid-template-columns:minmax(240px,340px) 1fr; gap:18px; padding:16px; max-width:1100px; margin:0 auto; }
+  @media (max-width:760px) { main { grid-template-columns:1fr; } }
+  h2 { font-size:17px; margin:0 0 10px; }
+  .list { display:flex; flex-direction:column; gap:6px; }
+  .item { display:flex; gap:10px; align-items:center; padding:6px; border:1px solid var(--line); border-radius:6px; background:#fff8f0; cursor:pointer; text-align:left; width:100%; font:inherit; color:inherit; }
+  .item[aria-current="true"] { border-color:var(--ink); background:var(--wall); }
+  .item img { width:46px; height:46px; object-fit:cover; border-radius:3px; flex:none; }
+  .item small { display:block; color:#6b5446; }
+  form { display:grid; gap:10px; background:#fff8f0; border:1px solid var(--line); border-radius:8px; padding:14px; }
+  label { display:grid; gap:3px; font-size:13px; color:#6b5446; }
+  input,select,textarea { font:inherit; padding:7px 9px; border:1px solid #bba08f; border-radius:5px; background:#fff; color:var(--ink); width:100%; }
+  .row { display:grid; grid-template-columns:1fr 110px; gap:10px; } .row2 { display:grid; grid-template-columns:1fr 130px; gap:10px; }
+  #prev { max-width:200px; max-height:200px; border-radius:4px; border:1px solid var(--line); display:block; }
+  .actions { display:flex; gap:8px; flex-wrap:wrap; }
+  #msg { min-height:1.4em; font-style:italic; } #msg.err { color:#a33; }
+  .slots { display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:6px; margin-top:16px; }
+  .slot { border:1px dashed #bba08f; border-radius:5px; padding:5px 7px; font-size:12px; min-height:44px; background:transparent; text-align:left; border-radius:5px; }
+  .slot.full { border-style:solid; background:var(--wall); }
+  #gate { min-height:100vh; display:grid; place-items:center; padding:16px; background:var(--wall); }
+  #gate[hidden] { display:none; }
+  #gate form { width:min(380px,100%); background:var(--paper); }
+  #gate h1 { margin:0; font-size:19px; letter-spacing:.25em; font-weight:400; }
+  #gate code { display:block; word-break:break-all; background:#fff; border:1px solid var(--line); padding:8px; font-size:12px; user-select:all; }
+
+  /* AETHERIA 2.0 curator workspace */
+  :root { --wall:#d9c9b5; --ink:#17201e; --paper:#f2eee5; --gold:#b9965f; --line:#d9d0c2; }
+  body { background:#e9e4d9; color:#18211f; font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; }
+  header { position:sticky; top:0; z-index:5; background:#17201e; color:#f2eee5; padding:14px clamp(14px,3vw,34px); box-shadow:0 8px 30px #18211f20; }
+  header h1 { font:600 14px ui-sans-serif,system-ui,sans-serif; letter-spacing:.22em; }
+  button,.btn { border:1px solid #c8beae; background:#f8f5ee; color:#1b2522; border-radius:999px; padding:9px 14px; font:600 11px ui-sans-serif,system-ui,sans-serif; letter-spacing:.025em; }
+  button:hover,.btn:hover { background:#fff; }
+  button.primary { background:#c5a36b; border-color:#c5a36b; color:#18211f; }
+  button.danger { border-color:#b36a5c; color:#a24f43; }
+  header .btn,header button { border-color:#59635c; background:#222d29; color:#f2eee5; }
+  main { max-width:1440px; grid-template-columns:minmax(270px,390px) minmax(0,1fr); gap:22px; padding:24px clamp(14px,3vw,34px) 50px; }
+  main > section { min-width:0; }
+  h2 { font:500 23px/1.1 Georgia,serif; letter-spacing:-.02em; }
+  .list { max-height:calc(100vh - 230px); overflow:auto; padding-right:4px; }
+  .item { border:1px solid #d8d0c3; border-radius:10px; background:#f8f5ee; padding:8px; gap:12px; }
+  .item[aria-current="true"] { border-color:#b9965f; background:#e8ddc9; }
+  .item img { width:58px; height:62px; border-radius:7px; }
+  .item b { font:500 15px Georgia,serif; }
+  .item small { margin-top:4px; font-size:10px; }
+  form { background:#f8f5ee; border:1px solid #d8d0c3; border-radius:14px; padding:20px; box-shadow:0 12px 34px #17201e0a; }
+  label { color:#70685d; font:600 10px ui-sans-serif,system-ui,sans-serif; letter-spacing:.08em; text-transform:uppercase; }
+  input,select,textarea { border:1px solid #d2c8b8; border-radius:8px; background:#fffdf8; padding:11px 12px; color:#18211f; font:14px ui-sans-serif,system-ui,sans-serif; }
+  textarea { line-height:1.5; }
+  #prev { max-width:220px; max-height:220px; border-radius:9px; border:1px solid #d8d0c3; }
+  .slot { border:1px dashed #b8ad9d; border-radius:8px; background:#f4f0e8; padding:9px; font-size:10px; }
+  .slot.full { background:#e4d5bb; border-color:#b9965f; }
+  #gate { background:#17201e; }
+  #gate form,#gDone { border:1px solid #d8d0c3; border-radius:16px !important; box-shadow:0 25px 80px #0004; padding:24px !important; }
+  #gate h1 { font:600 14px ui-sans-serif,system-ui,sans-serif; letter-spacing:.25em; }
+  #gate h2 { font:500 25px Georgia,serif; }
+  #gHash { overflow-wrap:anywhere; }
+  @media(max-width:760px) { main { grid-template-columns:1fr; } .list { max-height:320px; } header { gap:7px; } header h1 { width:100%; } }
+
+</style>
+</head>
+<body>
+<div id="gate">
+  <form id="gForm" autocomplete="off">
+    <h1>AETHERIA</h1>
+    <h2 id="gTitle" style="margin:0">Curator sign in</h2>
+    <label>Password<input id="gPw" type="password" required autocomplete="current-password"></label>
+    <label id="gL2" hidden>Repeat password<input id="gPw2" type="password" autocomplete="new-password"></label>
+    <button class="primary" type="submit" id="gGo">Sign in</button>
+    <div id="gMsg" class="err" role="alert" style="color:#a33;min-height:1.4em"></div>
+  </form>
+  <div id="gDone" hidden style="width:min(380px,100%);background:var(--paper);padding:16px;border-radius:8px">
+    <h2 style="margin-top:0">Password created</h2>
+    <p>It works in this browser now. To use it on any device and after you deploy, paste this line into <b>admin-config.js</b> (replacing the existing line):</p>
+    <code id="gHash"></code>
+    <p><button class="primary" type="button" id="gCont">Continue to admin</button></p>
+  </div>
+</div>
+<div id="app" hidden>
+<header>
+  <h1>AETHERIA · CURATOR STUDIO</h1>
+  <a class="btn" href="index.html">View gallery</a>
+  <a class="btn" href="index.html?preview=1" target="_blank" rel="noopener">Preview draft</a>
+  <button id="export" type="button" class="primary">Publish: download exhibition.json</button>
+  <button id="importBtn" type="button">Import JSON</button>
+  <button id="loadPub" type="button">Load published</button>
+  <button id="lock" type="button">Lock</button>
+  <button id="reset" type="button">Reset to default</button>
+  <input id="importFile" type="file" accept="application/json,.json" hidden>
+</header>
+<p style="max-width:1100px;margin:12px auto 0;padding:0 16px">Visitors see the published <code>exhibition.json</code> on your site. Changes here are a private draft in this browser. When you are happy, use <b>Preview draft</b>, then <b>Publish</b>, replace <code>exhibition.json</code> in your project and redeploy.</p>
+<main>
+  <section aria-labelledby="lh"><h2 id="lh">Collection</h2>
+    <div class="actions" style="margin-bottom:10px"><button id="add" class="primary" type="button">Add artwork</button></div>
+    <div class="list" id="list"></div>
+  </section>
+  <section aria-labelledby="fh"><h2 id="fh">Artwork details</h2>
+    <form id="form" autocomplete="off">
+      <label>Type<select id="kind"><option value="image">Image (hangs on a wall)</option><option value="model">3D model (stands on a pedestal)</option></select></label>
+      <label>Title<input id="title" required maxlength="120"></label>
+      <div class="row"><label>Creator<input id="creator" maxlength="120"></label><label>Year<input id="year" maxlength="20"></label></div>
+      <label>Description<textarea id="desc" rows="4" maxlength="1200"></textarea></label>
+      <div id="imgF" style="display:grid;gap:10px">
+      <label>Image URL (leave empty for generated art)<input id="image" placeholder="https://… or data:image/…"></label>
+      <label>Or upload an image<input id="file" type="file" accept="image/*"></label>
+      <img id="prev" alt="Preview of selected artwork">
+      </div>
+      <div id="modF" hidden style="display:grid;gap:10px">
+        <label>Shape<select id="shape"><option value="prim:knot">Knot</option><option value="prim:crystal">Crystal</option><option value="prim:spiral">Spiral</option><option value="prim:orb">Orb</option><option value="prim:tower">Tower</option><option value="custom">Your own .glb file or URL</option></select></label>
+        <label id="colorL">Colour<input id="color" type="color" value="#c8553d"></label>
+        <div id="custF" hidden style="display:grid;gap:10px">
+          <label>Model URL (.glb)<input id="murl" placeholder="models/my-piece.glb or https://…"></label>
+          <label>Or upload a .glb (draft limit about 2.5 MB)<input id="mfile" type="file" accept=".glb,model/gltf-binary"></label>
+          <div id="mstat"></div>
+        </div>
+        <p style="margin:0;font-size:13px;color:#6b5446">3D pieces turn slowly on their pedestal. Use <b>Preview draft</b> to see them in the gallery.</p>
+      </div>
+      <div class="row2"><label>Placement<select id="slot"></select></label><label>Tour order (0 = off)<input id="tour" type="number" min="0" step="1" value="0"></label></div>
+      <div class="actions"><button class="primary" type="submit">Save artwork</button><button id="del" class="danger" type="button">Delete</button></div>
+      <div id="msg" role="status"></div>
+    </form>
+    <h2 style="margin-top:18px">Wall slots</h2>
+    <div class="slots" id="slots"></div>
+  </section>
+</main>
+</div>
+<script src="admin-config.js"></script>
+<script src="store.js"></script>
+<script>
+/* Password gate. Client-side only: it keeps casual visitors out of the curator UI. It does not protect
+   data, because visitors only ever see the published exhibition.json. For hard protection, also use
+   your host's access control on /admin.html. */
+(function () {
+  'use strict';
+  const $ = id => document.getElementById(id), SK = 'aetheria_admin_ok', HK = 'aetheria_admin_hash';
+  const get = (st, k) => { try { return st.getItem(k); } catch (e) { return null; } };
+  const stored = () => window.ADMIN_PASSWORD_HASH || get(localStorage, HK) || '';
+  const msg = t => $('gMsg').textContent = t || '';
+  async function hash(pw) {
+    if (!(window.crypto && crypto.subtle)) throw new Error('Passwords need https:// or http://localhost.');
+    const enc = new TextEncoder(), k = await crypto.subtle.importKey('raw', enc.encode(pw), 'PBKDF2', false, ['deriveBits']);
+    const b = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: enc.encode('aetheria-admin-v1'), iterations: 200000 }, k, 256);
+    return Array.from(new Uint8Array(b), x => x.toString(16).padStart(2, '0')).join('');
+  }
+  function unlock() { try { sessionStorage.setItem(SK, '1'); } catch (e) {} $('gate').hidden = true; $('app').hidden = false; }
+  const setup = !stored();
+  if (!setup && get(sessionStorage, SK)) return unlock();
+  $('gTitle').textContent = setup ? 'Create curator password' : 'Curator sign in';
+  $('gGo').textContent = setup ? 'Create password' : 'Sign in'; $('gL2').hidden = !setup; $('gPw2').required = setup;
+  $('gForm').onsubmit = async e => {
+    e.preventDefault(); msg(); const pw = $('gPw').value;
+    try {
+      if (setup) {
+        if (pw.length < 8) return msg('Use at least 8 characters.');
+        if (pw !== $('gPw2').value) return msg('Passwords do not match.');
+        const h = await hash(pw); try { localStorage.setItem(HK, h); } catch (x) {}
+        $('gHash').textContent = "window.ADMIN_PASSWORD_HASH = '" + h + "';"; $('gForm').hidden = true; $('gDone').hidden = false;
+      } else if ((await hash(pw)) === stored()) unlock(); else { msg('Wrong password.'); $('gPw').select(); }
+    } catch (err) { msg(err.message); }
+  };
+  $('gCont').onclick = unlock;
+  $('lock').onclick = () => { try { sessionStorage.removeItem(SK); } catch (e) {} location.reload(); };
+})();
+</script>
+<script>
+(function () {
+  'use strict';
+  const A = window.Aetheria, $ = id => document.getElementById(id);
+  let state = A.defaults(), sel = null, pending = null;
+  const persist = () => { if (!A.save(state)) say('Browser storage is full or blocked. Publish to keep your work, or use smaller images or models.', 1); };
+  function say(t, err) { const m = $('msg'); m.textContent = t; m.className = err ? 'err' : ''; }
+  const find = id => state.items.find(i => i.id === id);
+
+  /** Renumber tour positions to 1..n, placing the edited item first among ties. */
+  function normalize(editedId) {
+    const t = state.items.filter(i => i.tour > 0).sort((a, b) => a.tour - b.tour || (a.id === editedId ? -1 : b.id === editedId ? 1 : 0));
+    t.forEach((it, i) => it.tour = i + 1);
+  }
+  function renderList() {
+    const l = $('list'); l.textContent = '';
+    if (!state.items.length) { l.textContent = 'No artworks yet. Add one to begin.'; }
+    state.items.forEach(it => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'item'; b.setAttribute('aria-current', it.id === sel ? 'true' : 'false');
+      const im = new Image(); im.alt = ''; im.src = A.src(it); const d = document.createElement('div'), s = A.slot(it.slot);
+      d.innerHTML = '<b></b><small></small>'; d.querySelector('b').textContent = it.title;
+      d.querySelector('small').textContent = (s ? s.label : 'Not on a wall') + (it.tour > 0 && s ? ' · tour stop ' + it.tour : '');
+      b.append(im, d); b.onclick = () => select(it.id); l.append(b);
+    });
+    const g = $('slots'); g.textContent = '';
+    A.SLOTS.forEach(s => { const o = state.items.find(i => i.slot === s.id), b = document.createElement('button'); b.type = 'button'; b.className = 'slot' + (o ? ' full' : '');
+      b.textContent = s.id + ' · ' + (o ? o.title : 'empty'); b.title = s.label;
+      b.onclick = () => { if (o) select(o.id); else if (sel) { if (s.kind !== ($('kind').value === 'model' ? 'ped' : 'wall')) say('That slot is for ' + (s.kind === 'ped' ? '3D models' : 'images') + '.', 1); else { $('slot').value = s.id; say('Slot ' + s.id + ' chosen. Save to apply.'); } } }; g.append(b); });
+  }
+  function syncKind() { const m = $('kind').value === 'model'; $('imgF').hidden = m; $('modF').hidden = !m; }
+  function syncShape() { const c = $('shape').value === 'custom'; $('custF').hidden = !c; $('colorL').hidden = c; }
+  function fillSlots() {
+    const s = $('slot'), k = $('kind').value === 'model' ? 'ped' : 'wall'; s.textContent = ''; s.add(new Option('Not placed', ''));
+    A.SLOTS.filter(sl => sl.kind === k).forEach(sl => { const o = state.items.find(i => i.slot === sl.id); s.add(new Option(sl.id + ' · ' + sl.label + (o && o.id !== sel ? ' (swap with ' + o.title + ')' : ''), sl.id)); });
+  }
+  function select(id) {
+    sel = id; pending = null; const it = find(id) || { title: '', creator: '', year: '', description: '', image: '', kind: 'image', model: '', modelData: '', color: '#c8553d', slot: '', tour: 0, id: 'new' };
+    $('kind').value = it.kind || 'image'; syncKind(); fillSlots(); $('title').value = it.title; $('creator').value = it.creator; $('year').value = it.year; $('desc').value = it.description;
+    $('image').value = it.image && it.image.indexOf('gen:') !== 0 ? it.image : ''; $('slot').value = it.slot; $('tour').value = it.tour; $('file').value = '';
+    const m = it.model || '', isP = m.indexOf('prim:') === 0;
+    $('shape').value = isP ? m : (m ? 'custom' : 'prim:knot'); $('color').value = it.color || '#c8553d'; $('murl').value = isP ? '' : m; $('mfile').value = '';
+    $('mstat').textContent = it.modelData ? 'An uploaded file is stored in this draft.' : ''; syncShape();
+    $('prev').src = A.src(it); $('del').disabled = !find(id); say(''); renderList();
+  }
+  $('kind').onchange = () => { syncKind(); fillSlots(); $('slot').value = ''; };
+  $('shape').onchange = syncShape;
+  $('mfile').onchange = e => { const f = e.target.files[0]; if (!f) return;
+    if (!/\.glb$/i.test(f.name)) return say('Please choose a .glb file (binary glTF).', 1);
+    if (f.size > 2.6e6) return say('That file is ' + (f.size / 1e6).toFixed(1) + ' MB. Keep draft uploads under about 2.5 MB, or host the file and paste its URL.', 1);
+    const fr = new FileReader(); fr.onload = () => { pending = fr.result; $('mstat').textContent = f.name + ' ready. Save to apply.'; say(''); }; fr.readAsDataURL(f); };
+  $('add').onclick = () => { sel = '__new'; select('__new'); sel = '__new'; $('title').focus(); renderList(); };
+  $('image').oninput = () => { const v = $('image').value.trim(); $('prev').src = v || A.src({ id: sel || 'x', image: '' }); };
+  $('file').onchange = e => { const f = e.target.files[0]; if (!f) return; const fr = new FileReader();
+    fr.onload = () => { const im = new Image(); im.onload = () => { const k = Math.min(1, 900 / Math.max(im.width, im.height)), c = document.createElement('canvas');
+        c.width = Math.round(im.width * k); c.height = Math.round(im.height * k); c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+        const u = c.toDataURL('image/jpeg', .82); $('image').value = u; $('prev').src = u; say('Image ready (' + Math.round(u.length / 1024) + ' KB). Save to apply.'); };
+      im.onerror = () => say('That file could not be read as an image.', 1); im.src = fr.result; };
+    fr.readAsDataURL(f); };
+  $('form').onsubmit = e => {
+    e.preventDefault(); const title = $('title').value.trim(); if (!title) return say('Enter a title.', 1);
+    let it = find(sel); const isNew = !it;
+    if (isNew) { it = { id: 'art-' + Date.now().toString(36) }; state.items.push(it); }
+      const kind = $('kind').value, extra = { kind, image: '', model: '', modelData: '', color: $('color').value };
+      if (kind === 'model') {
+        const sh = $('shape').value;
+        if (sh !== 'custom') extra.model = sh;
+        else { const u = $('murl').value.trim();
+          if (pending) { extra.modelData = pending; extra.model = 'models/' + it.id + '.glb'; }
+          else if (u) extra.model = u;
+          else if (it.modelData) { extra.modelData = it.modelData; extra.model = it.model; }
+          else { if (isNew) state.items.pop(); return say('Choose a .glb file or paste a model URL.', 1); } }
+      } else extra.image = $('image').value.trim() || 'gen:' + (A.hash(it.id) % 997);
+      const slot = $('slot').value, other = slot && state.items.find(i => i.slot === slot && i !== it);
+      if (other) other.slot = '';
+      Object.assign(it, extra, { title, creator: $('creator').value.trim(), year: $('year').value.trim(), description: $('desc').value.trim(), slot, tour: Math.max(0, parseInt($('tour').value, 10) || 0) });
+    if (!slot && it.tour) say('Saved. Note: works without a wall slot are skipped on the tour.');
+    normalize(it.id); persist(); sel = it.id; select(it.id); if (!$('msg').textContent) say('Saved' + (other ? '. "' + other.title + '" was moved off that slot.' : '.'));
+  };
+  $('del').onclick = () => { const it = find(sel); if (!it || !confirm('Delete "' + it.title + '"?')) return; state.items = state.items.filter(i => i !== it); normalize(); persist(); sel = null; select(state.items[0] && state.items[0].id); say('Deleted.'); };
+  function dl(name, blob) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 3000); }
+  $('export').onclick = () => {
+    const files = state.items.filter(i => i.modelData);
+    dl('exhibition.json', new Blob([JSON.stringify(A.publishState(state), null, 2)], { type: 'application/json' }));
+    files.forEach((it, i) => setTimeout(() => fetch(it.modelData).then(r => r.blob()).then(b => dl(it.id + '.glb', b)), 500 * (i + 1)));
+    say('Downloaded exhibition.json' + (files.length ? ' and ' + files.length + ' model file(s). Put the .glb files in a models/ folder next to index.html.' : '.') + ' Replace the file(s) in your site and redeploy to publish.');
+  };
+  $('loadPub').onclick = () => { if (!confirm('Discard your draft and reload the published exhibition?')) return; A.published().then(s => { state = s; persist(); select(state.items[0] && state.items[0].id); say('Loaded the published exhibition.'); }); };
+  $('importBtn').onclick = () => $('importFile').click();
+  $('importFile').onchange = e => { const f = e.target.files[0]; if (!f) return; const fr = new FileReader();
+    fr.onload = () => { try { const s = A.validate(JSON.parse(fr.result)); if (!confirm('Replace the current exhibition with ' + s.items.length + ' imported artworks?')) return;
+        state = s; normalize(); persist(); select(state.items[0] && state.items[0].id); say('Imported ' + s.items.length + ' artworks.'); } catch (err) { say('Import failed: ' + err.message, 1); } };
+    fr.readAsText(f); e.target.value = ''; };
+  $('reset').onclick = () => { if (!confirm('Reset to the default exhibition? Your changes will be lost.')) return; state = A.reset(); select(state.items[0].id); say('Default exhibition restored.'); };
+  addEventListener('storage', e => { if (e.key === A.KEY) { state = A.load(); renderList(); } });
+  (A.hasDraft() ? Promise.resolve(A.load()) : A.published()).then(s => { state = s; select(state.items[0] && state.items[0].id); });
+})();
+</script>
+</body>
+</html>
