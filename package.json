@@ -1,0 +1,12 @@
+{
+  "name": "aetheria-virtual-gallery",
+  "version": "2.0.0",
+  "private": true,
+  "description": "A responsive immersive 3D art gallery powered by the supplied GLB model.",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
